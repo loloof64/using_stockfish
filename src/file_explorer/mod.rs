@@ -8,12 +8,12 @@ use dioxus::prelude::*;
 #[allow(non_snake_case)]
 pub fn FileExplorer(cx: Scope) -> Element {
     let files = use_ref(cx, Files::new);
+    // let hidden_files_shown = use_ref(cx, || false);
 
     render!(div {
         link { href:"https://fonts.googleapis.com/icon?family=Material+Icons", rel:"stylesheet" }
         style { include_str!("./style.css") }
         header {
-            i { class: "material-icons icon-menu", "menu" }
             h1 { "{files.read().current()}" }
             span { }
             i { class: "material-icons", onclick: move |_| files.write().go_up(), "arrow_upward" }
