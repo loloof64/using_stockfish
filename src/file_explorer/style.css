@@ -140,6 +140,10 @@ header span {
     flex: 1;
 }
 
+header p {
+    margin: 0 10px;
+}
+
 header i {
     margin: 0 10px;
     cursor: pointer;

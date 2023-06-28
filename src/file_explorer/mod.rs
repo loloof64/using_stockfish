@@ -8,7 +8,7 @@ use dioxus::prelude::*;
 #[allow(non_snake_case)]
 pub fn FileExplorer(cx: Scope) -> Element {
     let files = use_ref(cx, Files::new);
-    // let hidden_files_shown = use_ref(cx, || false);
+    let hidden_files_shown = use_ref(cx, || false);
 
     render!(div {
         link { href:"https://fonts.googleapis.com/icon?family=Material+Icons", rel:"stylesheet" }
@@ -16,7 +16,19 @@ pub fn FileExplorer(cx: Scope) -> Element {
         header {
             h1 { "{files.read().current()}" }
             span { }
-            i { class: "material-icons", onclick: move |_| files.write().go_up(), "arrow_upward" }
+            p {
+                "Show hidden items"
+            }
+            input {
+                "type": "checkbox",
+                checked: "{hidden_files_shown.read()}",
+                onchange: |evt| {
+                    hidden_files_shown.set(evt.value.clone().trim().parse().unwrap());
+                    files.write().reload_path_list(*hidden_files_shown.read());
+                }
+            }
+
+            i { class: "material-icons", onclick: move |_| files.write().go_up(*hidden_files_shown.read()), "arrow_upward" }
         }
         main {
             files.read().path_names.iter().enumerate().map(|(dir_id, path)| {
@@ -24,7 +36,7 @@ pub fn FileExplorer(cx: Scope) -> Element {
                 let item_name = item_name.replace("_", "\u{200b}_");
                 let path_obj = Path::new(path);
                 let icon_type = if path_obj.is_dir() {
-                    "folder" 
+                    "folder"
                 } else {
                     "description"
                 };
@@ -32,7 +44,7 @@ pub fn FileExplorer(cx: Scope) -> Element {
                 rsx! (
                     div { class: "folder", key: "{path}",
                         i { class: "material-icons",
-                            onclick: move |_| files.write().enter_dir(dir_id),
+                            onclick: move |_| files.write().enter_dir(dir_id, *hidden_files_shown.read()),
                             "{icon_type}"
                             p { class: "cooltip", "0 folders / 0 files" }
                         }
@@ -77,12 +89,12 @@ impl Files {
             path_names: vec![],
             err: None,
         };
-        files.reload_path_list();
+        files.reload_path_list(false);
 
         files
     }
 
-    fn reload_path_list(&mut self) {
+    fn reload_path_list(&mut self, show_hidden_files: bool) {
         let cur_path = self.path.as_path();
         let paths = match std::fs::read_dir(cur_path) {
             Ok(e) => e,
@@ -138,19 +150,31 @@ impl Files {
                     .cmp(&snd_file_name.to_lowercase())
             }
         });
+
+        if !show_hidden_files {
+            self.path_names = self
+                .path_names
+                .iter()
+                .filter(|name| {
+                    let path = Path::new(name);
+                    !path.file_name().unwrap().to_str().unwrap().starts_with('.')
+                })
+                .map(|e| e.clone())
+                .collect::<Vec<_>>();
+        }
     }
 
-    fn go_up(&mut self) {
+    fn go_up(&mut self, show_hidden_files: bool) {
         if self.path.parent().is_some() {
             self.path = self.path.parent().unwrap().to_path_buf();
         }
-        self.reload_path_list();
+        self.reload_path_list(show_hidden_files);
     }
 
-    fn enter_dir(&mut self, dir_id: usize) {
+    fn enter_dir(&mut self, dir_id: usize, show_hidden_files: bool) {
         let path_name = &self.path_names[dir_id];
         self.path = Path::new(self.path.as_path()).join(path_name).to_path_buf();
-        self.reload_path_list();
+        self.reload_path_list(show_hidden_files);
     }
 
     fn current(&self) -> String {
