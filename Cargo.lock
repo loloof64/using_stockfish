@@ -2828,7 +2828,6 @@ dependencies = [
  "dioxus",
  "dioxus-desktop",
  "directories",
- "log",
  "signal-hook",
 ]
 

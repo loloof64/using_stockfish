@@ -1,4 +1,4 @@
-use std::{env::current_dir, path::Path};
+use std::{path::{Path, PathBuf, self}};
 
 use dioxus::prelude::*;
 
@@ -48,7 +48,9 @@ pub fn FileExplorer(cx: Scope) -> Element {
 }
 
 struct Files {
-    path: String,
+    path: PathBuf,
+    path_names: Vec<String>,
+    err: Option<String>,
 }
 
 use directories::UserDirs;
@@ -56,36 +58,35 @@ use directories::UserDirs;
 impl Files {
     fn new() -> Self {
         let default_path = Path::new(".");
-        let start_path = match UserDirs::new() {
+        let start_path = UserDirs::new();
+        let start_path = match  start_path {
             Some (ref dirs) => match dirs.document_dir() {
                 Some(dir) => dir,
                 _ => default_path
             },
             _ => default_path
         };
-        let mut files = Self {
-            path: start_path.display().to_string(),
+        let mut files = Self { 
+            path: start_path.to_path_buf(),
+            path_names: vec![],
+            err: None,
         };
-
         files.reload_path_list();
 
         files
     }
 
     fn reload_path_list(&mut self) {
-        let cur_path = self.path_stack.last().unwrap();
-        log::info!("Reloading path list for {:?}", cur_path);
+        let cur_path = self.path.as_path();
         let paths = match std::fs::read_dir(cur_path) {
             Ok(e) => e,
             Err(err) => {
                 let err = format!("An error occured: {:?}", err);
                 self.err = Some(err);
-                self.path_stack.pop();
                 return;
             }
         };
         let collected = paths.collect::<Vec<_>>();
-        log::info!("Path list reloaded {:#?}", collected);
 
         // clear the current state
         self.clear_err();
@@ -95,24 +96,26 @@ impl Files {
             self.path_names
                 .push(path.unwrap().path().display().to_string());
         }
-        log::info!("path names are {:#?}", self.path_names);
     }
 
     fn go_up(&mut self) {
-        if self.path_stack.len() > 1 {
-            self.path_stack.pop();
+        if self.path.parent().is_some() {
+            self.path = self.path.parent().unwrap().to_path_buf();
         }
         self.reload_path_list();
     }
 
     fn enter_dir(&mut self, dir_id: usize) {
-        let path = &self.path_names[dir_id];
-        self.path_stack.push(path.clone());
+        let path_name = &self.path_names[dir_id];
+        self.path = Path::new(self.path.as_path()).join(path_name).to_path_buf();
         self.reload_path_list();
     }
 
-    fn current(&self) -> &str {
-        self.path_stack.last().unwrap()
+    fn current(&self) -> String {
+        match self.path.as_path().file_name() {
+            Some(name) => String::from(name.to_str().unwrap()),
+            _ => path::MAIN_SEPARATOR.to_string(),
+        }
     }
     fn clear_err(&mut self) {
         self.err = None;
