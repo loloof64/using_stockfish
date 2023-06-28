@@ -20,7 +20,8 @@ pub fn FileExplorer(cx: Scope) -> Element {
         }
         main {
             files.read().path_names.iter().enumerate().map(|(dir_id, path)| {
-                let path_end = path.split(path::MAIN_SEPARATOR).last().unwrap();
+                let item_name = path.split(path::MAIN_SEPARATOR).last().unwrap();
+                let item_name = item_name.replace("_", "\u{200b}_");
                 let path_obj = Path::new(path);
                 let icon_type = if path_obj.is_dir() {
                     "folder" 
@@ -35,7 +36,7 @@ pub fn FileExplorer(cx: Scope) -> Element {
                             "{icon_type}"
                             p { class: "cooltip", "0 folders / 0 files" }
                         }
-                        h1 { "{path_end}" }
+                        h1 { "{item_name}" }
                     }
                 )
             })
