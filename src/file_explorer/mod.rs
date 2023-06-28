@@ -1,4 +1,7 @@
-use std::{path::{Path, PathBuf, self}};
+use std::{
+    cmp::Ordering,
+    path::{self, Path, PathBuf},
+};
 
 use dioxus::prelude::*;
 
@@ -17,12 +20,14 @@ pub fn FileExplorer(cx: Scope) -> Element {
         }
         main {
             files.read().path_names.iter().enumerate().map(|(dir_id, path)| {
-                let path_end = path.split('/').last().unwrap_or(path.as_str());
-                let icon_type = if path_end.contains('.') {
-                    "description"
+                let path_end = path.split(path::MAIN_SEPARATOR).last().unwrap();
+                let path_obj = Path::new(path);
+                let icon_type = if path_obj.is_dir() {
+                    "folder" 
                 } else {
-                    "folder"
+                    "description"
                 };
+
                 rsx! (
                     div { class: "folder", key: "{path}",
                         i { class: "material-icons",
@@ -59,14 +64,14 @@ impl Files {
     fn new() -> Self {
         let default_path = Path::new(".");
         let start_path = UserDirs::new();
-        let start_path = match  start_path {
-            Some (ref dirs) => match dirs.document_dir() {
+        let start_path = match start_path {
+            Some(ref dirs) => match dirs.document_dir() {
                 Some(dir) => dir,
-                _ => default_path
+                _ => default_path,
             },
-            _ => default_path
+            _ => default_path,
         };
-        let mut files = Self { 
+        let mut files = Self {
             path: start_path.to_path_buf(),
             path_names: vec![],
             err: None,
@@ -96,6 +101,42 @@ impl Files {
             self.path_names
                 .push(path.unwrap().path().display().to_string());
         }
+
+        self.path_names.sort_by(|fst, snd| {
+            let fst_file_name = fst.split(path::MAIN_SEPARATOR).last().unwrap();
+            let snd_file_name = snd.split(path::MAIN_SEPARATOR).last().unwrap();
+
+            let fst_is_file = {
+                let item_name = String::from(fst_file_name);
+                let item_path = self.path.join(item_name);
+                if !item_path.exists() {
+                    false
+                } else {
+                    item_path.is_dir()
+                }
+            };
+            let snd_is_file = {
+                let item_name = String::from(snd_file_name);
+                let item_path = self.path.join(item_name);
+                if !item_path.exists() {
+                    false
+                } else {
+                    item_path.is_dir()
+                }
+            };
+
+            if fst_is_file != snd_is_file {
+                if fst_is_file {
+                    Ordering::Greater
+                } else {
+                    Ordering::Less
+                }
+            } else {
+                fst_file_name
+                    .to_lowercase()
+                    .cmp(&snd_file_name.to_lowercase())
+            }
+        });
     }
 
     fn go_up(&mut self) {
