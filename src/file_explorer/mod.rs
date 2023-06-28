@@ -16,7 +16,7 @@ pub fn FileExplorer(cx: Scope) -> Element {
             i { class: "material-icons icon-menu", "menu" }
             h1 { "{files.read().current()}" }
             span { }
-            i { class: "material-icons", onclick: move |_| files.write().go_up(), "logout" }
+            i { class: "material-icons", onclick: move |_| files.write().go_up(), "arrow_upward" }
         }
         main {
             files.read().path_names.iter().enumerate().map(|(dir_id, path)| {
