@@ -40,10 +40,15 @@ pub fn FileExplorer(cx: Scope) -> Element {
                     "description"
                 };
 
+                let item_class = match files.read().selected_item_name {
+                    Some(ref name) => if name == item_name { "folder selected" } else { "folder"},
+                    _ => "folder"
+                };
+
                 rsx! (
-                    div { class: "folder", key: "{path}",
+                    div { class: item_class, key: "{path}",
                         i { class: "material-icons",
-                            onclick: move |_| files.write().enter_dir(dir_id, *hidden_files_shown.read()),
+                            onclick: move |_| files.write().select_item(dir_id, *hidden_files_shown.read()),
                             "{icon_type}"
                             p { class: "cooltip", "0 folders / 0 files" }
                         }
@@ -68,6 +73,7 @@ struct Files {
     path: PathBuf,
     path_names: Vec<String>,
     err: Option<String>,
+    selected_item_name: Option<String>,
 }
 
 use directories::UserDirs;
@@ -86,6 +92,7 @@ impl Files {
         let mut files = Self {
             path: start_path.to_path_buf(),
             path_names: vec![],
+            selected_item_name: None,
             err: None,
         };
         files.reload_path_list(false);
@@ -164,16 +171,28 @@ impl Files {
     }
 
     fn go_up(&mut self, show_hidden_files: bool) {
+        self.selected_item_name = None;
         if self.path.parent().is_some() {
             self.path = self.path.parent().unwrap().to_path_buf();
         }
         self.reload_path_list(show_hidden_files);
     }
 
-    fn enter_dir(&mut self, dir_id: usize, show_hidden_files: bool) {
+    fn select_item(&mut self, dir_id: usize, show_hidden_files: bool) {
         let path_name = &self.path_names[dir_id];
-        self.path = Path::new(self.path.as_path()).join(path_name).to_path_buf();
-        self.reload_path_list(show_hidden_files);
+        let path = Path::new(self.path.as_path()).join(path_name).to_path_buf();
+        if path.is_file() {
+            let new_selected_item_name = String::from(path.file_name().unwrap().to_str().unwrap());
+            self.selected_item_name = match &self.selected_item_name {
+                Some(name) => if *name == new_selected_item_name { None } else { Some(new_selected_item_name)},
+                _ => Some(new_selected_item_name),
+            };
+        }
+        else {
+            self.selected_item_name = None;
+            self.path = path;
+            self.reload_path_list(show_hidden_files);
+        }
     }
 
     fn current(&self) -> String {

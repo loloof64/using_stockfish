@@ -36,6 +36,10 @@ main {
     text-align: center;
 }
 
+.folder.selected {
+    background-color: #2fd44b8a;
+}
+
 .folder i {
     margin: 0;
     font-size: 100px;
