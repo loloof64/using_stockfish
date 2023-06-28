@@ -1,0 +1,13 @@
+[package]
+name = "using_stockfish"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+dioxus = "0.3.2"
+dioxus-desktop = "0.3.0"
+directories = "5.0.1"
+log = "0.4.19"
+signal-hook = "0.3.15"
