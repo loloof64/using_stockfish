@@ -11,7 +11,7 @@ pub fn FileExplorer(cx: Scope) -> Element {
         style { include_str!("./style.css") }
         header {
             i { class: "material-icons icon-menu", "menu" }
-            h1 { "Files: " "{files.read().current()}" }
+            h1 { "{files.read().current()}" }
             span { }
             i { class: "material-icons", onclick: move |_| files.write().go_up(), "logout" }
         }
@@ -112,9 +112,9 @@ impl Files {
     }
 
     fn current(&self) -> String {
-        match self.path.as_path().file_name() {
-            Some(name) => String::from(name.to_str().unwrap()),
-            _ => path::MAIN_SEPARATOR.to_string(),
+        match self.path.as_path().to_str() {
+            Some(path) => String::from(path),
+            _ => String::from(path::MAIN_SEPARATOR),
         }
     }
     fn clear_err(&mut self) {
