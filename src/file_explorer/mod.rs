@@ -107,7 +107,7 @@ impl Files {
             let fst_file_name = fst.split(path::MAIN_SEPARATOR).last().unwrap();
             let snd_file_name = snd.split(path::MAIN_SEPARATOR).last().unwrap();
 
-            let fst_is_file = {
+            let fst_is_dir = {
                 let item_name = String::from(fst_file_name);
                 let item_path = self.path.join(item_name);
                 if !item_path.exists() {
@@ -116,7 +116,7 @@ impl Files {
                     item_path.is_dir()
                 }
             };
-            let snd_is_file = {
+            let snd_is_dir = {
                 let item_name = String::from(snd_file_name);
                 let item_path = self.path.join(item_name);
                 if !item_path.exists() {
@@ -126,11 +126,11 @@ impl Files {
                 }
             };
 
-            if fst_is_file != snd_is_file {
-                if fst_is_file {
-                    Ordering::Greater
-                } else {
+            if fst_is_dir != snd_is_dir {
+                if fst_is_dir {
                     Ordering::Less
+                } else {
+                    Ordering::Greater
                 }
             } else {
                 fst_file_name
