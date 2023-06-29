@@ -11,7 +11,6 @@ pub fn FileExplorer(cx: Scope) -> Element {
     let hidden_files_shown = use_ref(cx, || false);
 
     render!(div {
-        link { href:"https://fonts.googleapis.com/icon?family=Material+Icons", rel:"stylesheet" }
         style { include_str!("./style.css") }
         header {
             h1 { "{files.read().current()}" }
@@ -28,16 +27,34 @@ pub fn FileExplorer(cx: Scope) -> Element {
                 }
             }
 
-            i { class: "material-icons", onclick: move |_| files.write().go_up(*hidden_files_shown.read()), "arrow_upward" }
+            div { 
+                onclick: move |_| files.write().go_up(*hidden_files_shown.read()),
+                img {
+                    class: "goUp",
+                    src: "public/assets/arrow_upward.svg",
+                    width: 25,
+                    height: 25,
+                }
+            }
         }
         main {
             files.read().path_names.iter().enumerate().map(|(dir_id, path)| {
                 let item_name = path.split(path::MAIN_SEPARATOR).last().unwrap();
                 let path_obj = Path::new(path);
-                let icon_type = if path_obj.is_dir() {
-                    "folder"
+                let icon = if path_obj.is_dir() {
+                    rsx!(img {
+                        class: "item",
+                        src: "public/assets/folder.svg",
+                        width: 70,
+                        height: 70,
+                    })
                 } else {
-                    "description"
+                    rsx!(img {
+                        class: "item",
+                        src: "public/assets/description.svg",
+                        width: 70,
+                        height: 70,
+                    })
                 };
 
                 let item_class = match files.read().selected_item_name {
@@ -47,9 +64,9 @@ pub fn FileExplorer(cx: Scope) -> Element {
 
                 rsx! (
                     div { class: item_class, key: "{path}",
-                        i { class: "material-icons",
+                        i { 
                             onclick: move |_| files.write().select_item(dir_id, *hidden_files_shown.read()),
-                            "{icon_type}"
+                            icon,
                             p { class: "cooltip", "0 folders / 0 files" }
                         }
                         h1 { "{item_name}" }

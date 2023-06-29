@@ -40,12 +40,6 @@ main {
     background-color: #2fd44b8a;
 }
 
-.folder i {
-    margin: 0;
-    font-size: 100px;
-    color: #607D8B;
-}
-
 .folder h1 {
     position: relative;
     display: block;
@@ -156,4 +150,12 @@ header i {
 
 header i:nth-child(1) {
     margin: 0 20px;
+}
+
+.goUp {
+    filter: invert(100%) sepia(0%) saturate(0%) hue-rotate(288deg) brightness(110%) contrast(101%);
+}
+
+.item {
+    filter: invert(49%) sepia(12%) saturate(815%) hue-rotate(155deg) brightness(93%) contrast(88%);
 }
