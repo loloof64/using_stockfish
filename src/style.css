@@ -1,0 +1,22 @@
+#main {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.fieldsLine {
+    width: 80vw;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+}
+
+.fieldsLine input {
+    flex: 10;
+}
+
+.fieldsLine button {
+    flex: 2;
+}

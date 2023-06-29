@@ -37,23 +37,28 @@ fn App(cx: Scope) -> Element {
         })
     } else {
         cx.render(rsx! {div {
-            input {
-                value: "{command}",
-                oninput: move |evt| command.set(evt.value.clone())
-            }
-            button {
-                onclick: move |_| {
-                    match *process_handler_2.borrow_mut() {
-                        Some(ref handler) => {
-                            handler.get_channel_transmitter().send(command.to_string()).unwrap();
-                        },
-                        _ => {},
-                    }
-                },
-                "Send command"
+            style { include_str!("./style.css") }
+            div {
+                class: "fieldsLine",
+                input {
+                    value: "{command}",
+                    oninput: move |evt| command.set(evt.value.clone())
+                }
+                button {
+                    onclick: move |_| {
+                        match *process_handler_2.borrow_mut() {
+                            Some(ref handler) => {
+                                handler.get_channel_transmitter().send(command.to_string()).unwrap();
+                            },
+                            _ => {},
+                        }
+                    },
+                    "Send command"
+                }
             }
         }
         div {
+            class: "fieldsLine",
             input {
                 value: "{program_path}",
                 oninput: move |evt| program_path.set(evt.value.clone())
