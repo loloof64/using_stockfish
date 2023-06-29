@@ -5,8 +5,14 @@ use std::{
 
 use dioxus::prelude::*;
 
+#[derive(Props)]
+pub struct FileExplorerProps<'a> {
+    on_cancel: EventHandler<'a>,
+    on_validate: EventHandler<'a, String>,
+}
+
 #[allow(non_snake_case)]
-pub fn FileExplorer(cx: Scope) -> Element {
+pub fn FileExplorer<'a>(cx: Scope<'a, FileExplorerProps<'a>>) -> Element {
     let files = use_ref(cx, Files::new);
     let hidden_files_shown = use_ref(cx, || false);
 
@@ -32,6 +38,32 @@ pub fn FileExplorer(cx: Scope) -> Element {
                 img {
                     class: "goUp",
                     src: "public/assets/arrow_upward.svg",
+                    width: 25,
+                    height: 25,
+                }
+            }
+
+            div { 
+                onclick: move |_| cx.props.on_cancel.call(()),
+                img {
+                    class: "cancel",
+                    src: "public/assets/close.svg",
+                    width: 25,
+                    height: 25,
+                }
+            }
+
+            div { 
+                onclick: move |_| {
+                    if files.read().selected_item_name.is_some() {
+                        let item_name = String::from(files.read().selected_item_name.as_ref().unwrap());
+                        let path = format!("{}{}{}", files.read().current(), path::MAIN_SEPARATOR, item_name);
+                        cx.props.on_validate.call(path);
+                    }
+                },
+                img {
+                    class: "validate",
+                    src: "public/assets/done.svg",
                     width: 25,
                     height: 25,
                 }

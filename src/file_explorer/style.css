@@ -162,6 +162,14 @@ header i:nth-child(1) {
     filter: invert(100%) sepia(0%) saturate(0%) hue-rotate(288deg) brightness(110%) contrast(101%);
 }
 
+.cancel {
+    filter: invert(22%) sepia(96%) saturate(6565%) hue-rotate(5deg) brightness(111%) contrast(133%);
+}
+
+.validate {
+    filter: invert(42%) sepia(97%) saturate(1128%) hue-rotate(88deg) brightness(125%) contrast(122%);
+}
+
 .item {
     filter: invert(49%) sepia(12%) saturate(815%) hue-rotate(155deg) brightness(93%) contrast(88%);
 }

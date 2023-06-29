@@ -26,7 +26,15 @@ fn App(cx: Scope) -> Element {
     let process_handler_2 = process_handler.clone();
 
     if *is_selecting_program.current() {
-        cx.render(rsx! {FileExplorer(cx)})
+        cx.render(rsx! {
+            FileExplorer {
+                on_cancel: |_| is_selecting_program.set(false),
+                on_validate: |path_string| {
+                    is_selecting_program.set(false);
+                    program_path.set(path_string);
+                },
+            }
+        })
     } else {
         cx.render(rsx! {div {
             input {
