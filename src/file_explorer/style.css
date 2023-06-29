@@ -36,7 +36,13 @@ main {
     text-align: center;
 }
 
-.folder.selected {
+.folder i {
+    margin: 0;
+    font-size: 100px;
+    color: #607D8B;
+}
+
+.folder.selected i {
     background-color: #2fd44b8a;
 }
 
@@ -46,6 +52,7 @@ main {
     top: -37px;
     font-size: 10px;
     font-weight: 400;
+    word-break: break-all;
 }
 
 .folder p.cooltip {
@@ -132,7 +139,6 @@ header {
 header h1 {
     font-weight: 400;
     font-size: 18px;
-    word-break: break-all;
 }
 
 header span {
