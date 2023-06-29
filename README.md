@@ -1,6 +1,6 @@
 # Using stockfish
 
-A simple experiment in Rust with Dioxus and Stockfish chess engine
+A simple experiment in Rust with Dioxus and Stockfish chess engine.
 
 ## Credits
 
