@@ -1,6 +1,9 @@
 mod process;
-use std::{cell::RefCell, io::Error, rc::Rc};
 
+use std::{cell::RefCell, process::Child, rc::Rc};
+
+use crossbeam_channel::Receiver;
+use dioxus_desktop::{Config, WindowBuilder};
 use process::*;
 
 mod file_explorer;
@@ -9,11 +12,10 @@ use file_explorer::*;
 use dioxus::prelude::*;
 
 fn main() {
-    dioxus_desktop::launch(App);
-}
-
-fn start_program(program_path: String) -> Result<ProcessHandler, Error> {
-    ProcessHandler::start(program_path)
+    dioxus_desktop::launch_cfg(
+        App,
+        Config::default().with_window(WindowBuilder::new().with_title("Using Stockfish POC")),
+    );
 }
 
 #[allow(non_snake_case)]
@@ -22,8 +24,8 @@ fn App(cx: Scope) -> Element {
     let command = use_state(cx, || "".to_string());
     let is_selecting_program = use_state(cx, || false);
 
-    let process_handler: Rc<RefCell<Option<ProcessHandler>>> = Rc::new(RefCell::new(None));
-    let process_handler_2 = process_handler.clone();
+    let process_child = Rc::new(RefCell::new(Option::<Child>::None));
+    let process_input = Rc::new(RefCell::new(Option::<Receiver<String>>::None));
 
     if *is_selecting_program.current() {
         cx.render(rsx! {
@@ -36,6 +38,8 @@ fn App(cx: Scope) -> Element {
             }
         })
     } else {
+        let process_child_clone = process_child.clone();
+        let process_child_clone_2 = process_child.clone();
         cx.render(rsx! {div {
             style { include_str!("./style.css") }
             div {
@@ -46,11 +50,8 @@ fn App(cx: Scope) -> Element {
                 }
                 button {
                     onclick: move |_| {
-                        match *process_handler_2.borrow_mut() {
-                            Some(ref handler) => {
-                                handler.get_channel_transmitter().send(command.to_string()).unwrap();
-                            },
-                            _ => {},
+                        if let Some(ref mut child) = *process_child_clone.borrow_mut() {
+                            ProcessHandler::send_command(command.to_string(), child);
                         }
                     },
                     "Send command"
@@ -70,14 +71,16 @@ fn App(cx: Scope) -> Element {
         }
         button {
             onclick: move |_| {
-                match start_program(program_path.to_string()) {
-                Ok(handler) => {
-                    *process_handler.borrow_mut() = Some(handler);
+                match ProcessHandler::start_program(program_path.to_string()) {
+                    Ok((child, receiver)) => {
+                        *process_child_clone_2.borrow_mut() = Some(child);
+                        *process_input.borrow_mut() = Some(receiver);
+                    },
+                    Err(e) => eprintln!("{}", e),
                 }
-                Err(e) => eprintln!("{}", e),
-            }
-        },
+            },
             "Start program"
-        }})
+        },
+        })
     }
 }

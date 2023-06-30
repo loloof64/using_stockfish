@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+crossbeam-channel = "0.5.8"
 dioxus = "0.3.2"
 dioxus-desktop = "0.3.0"
 directories = "5.0.1"
-signal-hook = "0.3.15"
