@@ -3,13 +3,18 @@ mod process;
 use std::{cell::RefCell, process::Child, rc::Rc};
 
 use crossbeam_channel::Receiver;
-use dioxus_desktop::{Config, WindowBuilder};
+use dioxus_desktop::{
+    Config, WindowBuilder,
+};
 use process::*;
 
 mod file_explorer;
 use file_explorer::*;
 
 use dioxus::prelude::*;
+
+mod hooks;
+use hooks::use_component_lifecycle::use_component_lifecycle;
 
 fn main() {
     dioxus_desktop::launch_cfg(
@@ -26,6 +31,14 @@ fn App(cx: Scope) -> Element {
 
     let process_child = Rc::new(RefCell::new(Option::<Child>::None));
     let process_input = Rc::new(RefCell::new(Option::<Receiver<String>>::None));
+
+    let process_child_2 = process_child.clone();
+
+    use_component_lifecycle(cx, move || (), move || {
+        if let Some(ref mut child) = *process_child_2.borrow_mut() {
+            child.kill().expect("failed to kill child process");
+        }
+    });
 
     if *is_selecting_program.current() {
         cx.render(rsx! {
