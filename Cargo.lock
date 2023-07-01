@@ -2806,7 +2806,6 @@ dependencies = [
 name = "using_stockfish"
 version = "0.1.0"
 dependencies = [
- "crossbeam-channel",
  "dioxus",
  "dioxus-desktop",
  "directories",

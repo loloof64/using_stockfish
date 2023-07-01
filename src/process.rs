@@ -1,6 +1,6 @@
-use crossbeam_channel::{unbounded, Receiver};
-use std::io::{Error, Read, Write};
+use std::io::{Error, Write, BufReader, BufRead};
 use std::process::{Child, Command};
+use std::sync::mpsc::{Receiver, channel, Sender, TryRecvError};
 use std::thread;
 use std::time::Duration;
 
@@ -9,47 +9,43 @@ pub struct ProcessHandler {
 }
 
 impl ProcessHandler {
-    pub fn start_program(program_path: String) -> Result<(Child, Receiver<String>), Error> {
-        let mut command_child = Command::new(program_path).spawn()?;
-        let mut stdout = command_child.stdout.take().unwrap();
-        let (tx1, rx1) = unbounded();
+    pub fn start_program(program_path: String) -> Result<(Child, Sender<String>, Receiver<String>), Error> {
+        let command_child = Command::new(program_path).spawn()?;
+        let stdout = command_child.stdout.expect("failed to get stdout from external command");
+        let mut stdin = command_child.stdin.expect("failed to get stdin from external command");
+        let (tx1, rx1) = channel::<String>();
+        let (tx2, rx2) = channel();
 
         thread::spawn(move || {
-            let mut buffer = [0; 200];
-            let mut line_rest = String::from("");
+            let mut f = BufReader::new(stdout);
             loop {
-                stdout.read(&mut buffer).expect("failed to read data from process output");
-                let mut line = match std::str::from_utf8(&buffer) {
-                    Ok(content) => String::from(content),
-                    _ => break,
-                };
-                if !line_rest.is_empty() {
-                    line = format!("{}{}", line_rest, line);
-                    line_rest = String::from("");
+                match rx1.try_recv() {
+                    Ok(line) => {
+                        stdin.write_all(line.as_bytes()).unwrap();
+                    }
+                    Err(TryRecvError::Empty) => {
+                        thread::sleep(Duration::from_millis(25));
+                        continue;
+                    }
+                    Err(e) => {
+                        println!("failed to read input from program's stdin : {:?}", e);
+                    }
                 }
-                if line.is_empty() {
-                    continue;
+                let mut buffer = String::new();
+                match f.read_line(&mut buffer) {
+                    Ok(_) => {
+                        tx2.send(buffer).expect("failed to send line to main code");
+                    },
+                    Err(e) => eprintln!("failed to send line to main code : {}", e),
                 }
-                let line = String::from(line);
-                let mut lines: Vec<String> =
-                    line.split('\n').map(|elt| String::from(elt)).collect();
-                line_rest = lines
-                    .pop()
-                    .expect("failed to get last line of process' stdout");
-                lines.iter().for_each(|curent_line| {
-                    tx1.send(curent_line.clone()).expect("failed to send data to process listener");
-                });
-                thread::sleep(Duration::from_millis(25));
             }
         });
 
-        Ok((command_child, rx1))
+        Ok((command_child, tx1, rx2))
     }
 
-    pub fn send_command(command: String, child: &mut Child) {
+    pub fn send_command(command: String, sender: &mut Sender<String>) {
         let command = format!("{}\n", command);
-        let mut command_input = child.stdin.take().unwrap();
-        command_input.write(command.as_bytes()).expect("failed to write command to process input");
-        command_input.flush().expect("failed to flush process input");
+        sender.send(command).expect("failed to write command to process input");
     }
 }

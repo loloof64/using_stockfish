@@ -1,8 +1,7 @@
 mod process;
 
-use std::{cell::RefCell, process::Child, rc::Rc};
+use std::{cell::RefCell, process::Child, rc::Rc, sync::mpsc::{Receiver, Sender}};
 
-use crossbeam_channel::Receiver;
 use dioxus_desktop::{
     Config, WindowBuilder,
 };
@@ -30,7 +29,8 @@ fn App(cx: Scope) -> Element {
     let is_selecting_program = use_state(cx, || false);
 
     let process_child = Rc::new(RefCell::new(Option::<Child>::None));
-    let process_input = Rc::new(RefCell::new(Option::<Receiver<String>>::None));
+    let process_output = Rc::new(RefCell::new(Option::<Receiver<String>>::None));
+    let process_input = Rc::new(RefCell::new(Option::<Sender<String>>::None));
 
     let process_child_2 = process_child.clone();
 
@@ -52,7 +52,6 @@ fn App(cx: Scope) -> Element {
         })
     } else {
         let process_child_clone = process_child.clone();
-        let process_child_clone_2 = process_child.clone();
         cx.render(rsx! {div {
             style { include_str!("./style.css") }
             div {
@@ -63,8 +62,8 @@ fn App(cx: Scope) -> Element {
                 }
                 button {
                     onclick: move |_| {
-                        if let Some(ref mut child) = *process_child_clone.borrow_mut() {
-                            ProcessHandler::send_command(command.to_string(), child);
+                        if let Some(ref mut process_input) = *process_input.borrow_mut() {
+                            ProcessHandler::send_command(command.to_string(), process_input);
                         }
                     },
                     "Send command"
@@ -85,9 +84,10 @@ fn App(cx: Scope) -> Element {
         button {
             onclick: move |_| {
                 match ProcessHandler::start_program(program_path.to_string()) {
-                    Ok((child, receiver)) => {
-                        *process_child_clone_2.borrow_mut() = Some(child);
-                        *process_input.borrow_mut() = Some(receiver);
+                    Ok((child, sender, receiver)) => {
+                        *process_child_clone.borrow_mut() = Some(child);
+                        *process_input.borrow_mut() = Some(sender);
+                        *process_output.borrow_mut() = Some(receiver);
                     },
                     Err(e) => eprintln!("{}", e),
                 }
