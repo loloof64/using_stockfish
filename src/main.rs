@@ -1,6 +1,10 @@
 mod process;
 
-use std::{cell::RefCell, rc::Rc, time::Duration};
+use std::{
+    process::Child,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 use dioxus_desktop::{Config, WindowBuilder};
 
@@ -27,7 +31,7 @@ fn App(cx: Scope) -> Element {
     let command = use_state(cx, || "".to_string());
     let is_selecting_program = use_state(cx, || false);
 
-    let process_handler = Rc::new(RefCell::new(ProcessHandler::new()));
+    let process_handler = use_state(cx, || Option::<Arc<Mutex<Child>>>::None);
     let process_handler_clone = process_handler.clone();
     let process_handler_clone_2 = process_handler.clone();
     let process_handler_clone_3 = process_handler.clone();
@@ -36,15 +40,20 @@ fn App(cx: Scope) -> Element {
         cx,
         move || (),
         move || {
-            process_handler.borrow_mut().dispose();
+            if let Some(child_ref) = process_handler_clone.get() {
+                ProcessHandler::dispose(child_ref.as_ref().lock().as_mut().unwrap());
+            }
         },
     );
 
     use_future(cx, (), move |_| async move {
         loop {
-            let lines = process_handler_clone_3.borrow_mut().read_output();
-            lines.into_iter().for_each(|line| println!("{}", line));
-            tokio::time::sleep(Duration::from_millis(10)).await;
+            if let Some(child_ref) = process_handler_clone_2.get() {
+                let lines =
+                    ProcessHandler::read_output(child_ref.as_ref().lock().as_mut().unwrap());
+                lines.into_iter().for_each(|line| println!("{}", line));
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
         }
     });
 
@@ -69,7 +78,9 @@ fn App(cx: Scope) -> Element {
                 }
                 button {
                     onclick: move |_| {
-                        process_handler_clone_2.borrow_mut().send_command(command.to_string());
+                        if let Some(child_ref) = process_handler_clone_3.get() {
+                            ProcessHandler::send_command(child_ref.as_ref().lock().as_mut().unwrap(), command.to_string());
+                        }
                     },
                     "Send command"
                 }
@@ -88,9 +99,9 @@ fn App(cx: Scope) -> Element {
         }
         button {
             onclick: move |_| {
-                match process_handler_clone.borrow_mut().start_program(program_path.get()) {
+                match ProcessHandler::start_program(program_path.get()) {
+                    Ok(child) => process_handler.set(Some(Arc::new(Mutex::new(child)))),
                     Err(e) => eprintln!("{}", e),
-                    _ => ()
                 }
             },
             "Start program"

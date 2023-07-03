@@ -1,61 +1,44 @@
-use std::cell::RefCell;
-use std::io::{Error, Write, BufReader, BufRead};
+use std::io::{BufRead, BufReader, Error, Write};
 use std::process::{Child, Command, Stdio};
-use std::sync::Arc;
 
-pub struct ProcessHandler {
-    child: Arc<RefCell<Option<Child>>>,
-}
+pub struct ProcessHandler {}
 
 impl ProcessHandler {
-    pub fn new() -> Self {
-        Self {
-            child: Arc::new(RefCell::new(None)),
-        }
-    }
-
-    pub fn start_program(&mut self, program_path: &String) -> Result<(), Error> {
+    pub fn start_program(program_path: &String) -> Result<Child, Error> {
         let command_child = Command::new(program_path)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .spawn()?;
-        *self.child.borrow_mut() = Some(command_child);
 
-        Ok(())
+        Ok(command_child)
     }
 
-    pub fn read_output(&mut self) -> Vec<String> {
-        match *self.child.borrow_mut() {
-            Some(ref mut child) => {
-                let stdout = child.stdout.as_mut().expect("failed to get process' stdout");
-                BufReader::new(stdout).lines().map(|elt| match elt {
-                    Ok(line) => line,
-                    _ => String::new()
-                }).collect()
-            },
-            _ => Vec::new()
-        }
+    pub fn read_output(child: &mut Child) -> Vec<String> {
+        let stdout = child
+            .stdout
+            .as_mut()
+            .expect("failed to get process' stdout");
+        BufReader::new(stdout)
+            .lines()
+            .map(|elt| match elt {
+                Ok(line) => line,
+                _ => String::new(),
+            })
+            .collect()
     }
 
-    pub fn send_command(&mut self, command: String) {
+    pub fn send_command(child: &mut Child, command: String) {
         let command = format!("{}\n", command);
-        match *self.child.borrow_mut() {
-            Some(ref mut child) => {
-                child
-                    .stdin
-                    .as_mut()
-                    .expect("failed to get process' stdin")
-                    .write(command.as_bytes())
-                    .expect("failed to send command to process");
-            }
-            _ => (),
-        };
+
+        child
+            .stdin
+            .as_mut()
+            .expect("failed to get process' stdin")
+            .write(command.as_bytes())
+            .expect("failed to send command to process");
     }
 
-    pub fn dispose(&mut self) {
-        match *self.child.borrow_mut() {
-            Some(ref mut child) => child.kill().expect("failed to kill child process"),
-            _ => (),
-        };
+    pub fn dispose(child: &mut Child) {
+        child.kill().expect("failed to kill child process");
     }
 }
