@@ -31,7 +31,7 @@ fn App(cx: Scope) -> Element {
     let command = use_state(cx, || "".to_string());
     let is_selecting_program = use_state(cx, || false);
 
-    let process_handler = use_state(cx, || Option::<Arc<Mutex<Child>>>::None);
+    let process_handler = use_state(cx, || Arc::new(Mutex::new(Option::<Child>::None)));
     let process_handler_clone = process_handler.clone();
     let process_handler_clone_2 = process_handler.clone();
     let process_handler_clone_3 = process_handler.clone();
@@ -39,20 +39,30 @@ fn App(cx: Scope) -> Element {
     use_component_lifecycle(
         cx,
         move || (),
-        move || {
-            if let Some(child_ref) = process_handler_clone.get() {
-                ProcessHandler::dispose(child_ref.as_ref().lock().as_mut().unwrap());
-            }
+        move || match process_handler_clone.get().try_lock() {
+            Ok(ref mut locked_child) => match locked_child.as_mut() {
+                Some(child) => ProcessHandler::dispose(child),
+                _ => (),
+            },
+            _ => (),
         },
     );
 
     use_future(cx, (), move |_| async move {
         loop {
-            if let Some(child_ref) = process_handler_clone_2.get() {
-                let line =
-                    ProcessHandler::read_output_line(child_ref.as_ref().lock().as_mut().unwrap()).await;
-                println!("{}", line);
-                tokio::time::sleep(Duration::from_millis(8)).await;
+            match process_handler_clone_2.get().try_lock() {
+                Ok(ref mut locked_child) => match locked_child.as_mut() {
+                    Some(child) => {
+                        let line = ProcessHandler::read_output_line(
+                            child,
+                        )
+                        .await;
+                        println!("{}", line);
+                        tokio::time::sleep(Duration::from_millis(8)).await;
+                    }
+                    _ => (),
+                },
+                _ => ()
             }
         }
     });
@@ -78,8 +88,12 @@ fn App(cx: Scope) -> Element {
                 }
                 button {
                     onclick: move |_| {
-                        if let Some(child_ref) = process_handler_clone_3.get() {
-                            ProcessHandler::send_command(child_ref.as_ref().lock().as_mut().unwrap(), command.to_string());
+                        match process_handler_clone_3.get().try_lock(){
+                            Ok(ref mut locked_child) => match locked_child.as_mut() {
+                                Some(child) => ProcessHandler::send_command(child, command.to_string()),
+                                _ => ()
+                            }   ,
+                            _ => ()
                         }
                     },
                     "Send command"
@@ -100,7 +114,13 @@ fn App(cx: Scope) -> Element {
         button {
             onclick: move |_| {
                 match ProcessHandler::start_program(program_path.get()) {
-                    Ok(child) => process_handler.set(Some(Arc::new(Mutex::new(child)))),
+                    Ok(new_child) => match process_handler.get().try_lock() {
+                        Ok(ref mut locked_child) => match locked_child.as_mut() {
+                            Some(child) => *child = new_child,
+                            _ => ()
+                        },
+                        _ => (),
+                    },
                     Err(e) => eprintln!("{}", e),
                 }
             },

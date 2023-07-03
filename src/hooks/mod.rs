@@ -1,2 +1,6 @@
 mod use_component_lifecycle;
 pub use use_component_lifecycle::use_component_lifecycle;
+
+mod use_periodic_update_future;
+pub use use_periodic_update_future::use_periodic_update;
+pub use use_periodic_update_future::use_periodic_update_future;
