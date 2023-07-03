@@ -1,5 +1,8 @@
-use std::io::{BufRead, BufReader, Error, Write};
+use std::io::{BufRead, Error, Write};
 use std::process::{Child, Command, Stdio};
+
+use tokio::io::BufReader;
+use tokio::process::ChildStdout;
 
 pub struct ProcessHandler {}
 
@@ -13,18 +16,13 @@ impl ProcessHandler {
         Ok(command_child)
     }
 
-    pub fn read_output(child: &mut Child) -> Vec<String> {
-        let stdout = child
-            .stdout
-            .as_mut()
-            .expect("failed to get process' stdout");
-        BufReader::new(stdout)
-            .lines()
-            .map(|elt| match elt {
-                Ok(line) => line,
-                _ => String::new(),
-            })
-            .collect()
+    pub async fn read_output_line(child: &mut Child) -> String {
+        let stdout = child.stdout.take().unwrap();
+        let stdout = ChildStdout::from_std(stdout).unwrap();
+        let mut result = String::new();
+        let buffer = BufReader::new(stdout);
+        buffer.buffer().read_line(&mut result).unwrap();
+        result
     }
 
     pub fn send_command(child: &mut Child, command: String) {
@@ -33,12 +31,12 @@ impl ProcessHandler {
         child
             .stdin
             .as_mut()
-            .expect("failed to get process' stdin")
+            .unwrap()
             .write(command.as_bytes())
-            .expect("failed to send command to process");
+            .unwrap();
     }
 
     pub fn dispose(child: &mut Child) {
-        child.kill().expect("failed to kill child process");
+        child.kill().unwrap();
     }
 }

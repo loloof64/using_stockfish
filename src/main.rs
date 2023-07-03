@@ -49,10 +49,10 @@ fn App(cx: Scope) -> Element {
     use_future(cx, (), move |_| async move {
         loop {
             if let Some(child_ref) = process_handler_clone_2.get() {
-                let lines =
-                    ProcessHandler::read_output(child_ref.as_ref().lock().as_mut().unwrap());
-                lines.into_iter().for_each(|line| println!("{}", line));
-                tokio::time::sleep(Duration::from_millis(10)).await;
+                let line =
+                    ProcessHandler::read_output_line(child_ref.as_ref().lock().as_mut().unwrap()).await;
+                println!("{}", line);
+                tokio::time::sleep(Duration::from_millis(8)).await;
             }
         }
     });
