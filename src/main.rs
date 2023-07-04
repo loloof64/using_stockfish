@@ -48,7 +48,7 @@ fn App(cx: Scope) -> Element {
         },
     );
 
-    use_future(cx, (), move |_| async move {
+    let _: &Coroutine<()> = use_coroutine(cx,   |_| async move {
         loop {
             match process_handler_clone_2.get().try_lock() {
                 Ok(ref mut locked_child) => match locked_child.as_mut() {
