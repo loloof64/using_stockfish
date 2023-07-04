@@ -46,13 +46,13 @@ fn App(cx: Scope) -> Element {
         },
     );
 
-    use_future(cx, (), move |_| async move {
+    let _: &Coroutine<()> = use_coroutine(cx,   |_| async move {
         loop {
             if let Some(child_ref) = process_handler_clone_2.get() {
                 let line =
                     ProcessHandler::read_output_line(child_ref.as_ref().lock().as_mut().unwrap()).await;
                 println!("{}", line);
-                tokio::time::sleep(Duration::from_millis(8)).await;
+                tokio::time::sleep(Duration::from_millis(25)).await;
             }
         }
     });
