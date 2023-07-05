@@ -31,7 +31,7 @@ impl ProcessHandler {
         }
     }
 
-    pub fn send_command(child: &mut Child, command: String) {
+    pub fn send_command(child: &mut Child, command: &String) {
         let command = format!("{}\n", command);
 
         let _ = child.stdin.as_mut().unwrap().write(command.as_bytes());

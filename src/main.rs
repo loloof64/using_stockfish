@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{time::Duration, sync::mpsc::{Sender, channel}};
 
 use dioxus_desktop::{Config, WindowBuilder};
 
@@ -23,43 +23,45 @@ fn App(cx: Scope) -> Element {
     let program_path = use_state(cx, || "".to_string());
     let command = use_state(cx, || "".to_string());
     let is_selecting_program = use_state(cx, || false);
+    let child_input = use_state(cx, || Option::<Sender<String>>::None);
 
-    let _ = use_future(
-        cx,
-        (program_path,),
-        |(program_path,)| {
-            let program_path = program_path.to_owned();
-            let mut process_child = Option::<Child>::None;
-            async move {
-                if let Some(ref mut child) = process_child {
-                    ProcessHandler::dispose(child).await;
-                }
-                if !program_path.is_empty() {
-                    loop {
-                        match process_child {
-                            Some(ref mut wrapped_child) => {
-                                let line =
-                                    ProcessHandler::read_output_line(wrapped_child).await;
-                                if let Some(line) = line {
-                                    println!("{}", line);
-                                }
+    let _ = use_future(cx, (program_path,), |(program_path,)| {
+        to_owned![program_path];
+        let mut process_child = Option::<Child>::None;
+        let (tx, rx) = channel();
+        child_input.set(Some(tx));
+
+        async move {
+            if let Some(ref mut child) = process_child {
+                ProcessHandler::dispose(child).await;
+            }
+            if !program_path.is_empty() {
+                loop {
+                    match process_child {
+                        Some(ref mut wrapped_child) => {
+                            let line = ProcessHandler::read_output_line(wrapped_child).await;
+                            if let Some(line) = line {
+                                println!("{}", line);
                             }
-                            _ => {
-                                let command_child = ProcessHandler::start_program(&program_path);
-                                match command_child {
-                                    Ok(command_child) => {
-                                        process_child = Some(command_child);
-                                    }
-                                    _ => println!("failed to run program"),
-                                }
+                            if let Ok(line) = rx.try_recv() {
+                                ProcessHandler::send_command(wrapped_child, &line);
                             }
                         }
-                        async_std::task::sleep(Duration::from_millis(25)).await;
+                        _ => {
+                            let command_child = ProcessHandler::start_program(&program_path);
+                            match command_child {
+                                Ok(command_child) => {
+                                    process_child = Some(command_child);
+                                }
+                                _ => println!("failed to run program"),
+                            }
+                        }
                     }
+                    async_std::task::sleep(Duration::from_millis(25)).await;
                 }
             }
-        },
-    );
+        }
+    });
 
     if *is_selecting_program.current() {
         cx.render(rsx! {
@@ -78,11 +80,13 @@ fn App(cx: Scope) -> Element {
                 class: "fieldsLine",
                 input {
                     value: "{command}",
-                    oninput: move |evt| command.set(evt.value.clone())
+                    onchange: move |evt| command.set(evt.value.clone())
                 }
                 button {
-                    onclick: move |_| {
-
+                    onclick: |_| {
+                        if let Some(process_input) = child_input.get() {
+                            process_input.send(command.get().clone()).unwrap();
+                        }
                     },
                     "Send command"
                 }
@@ -100,12 +104,6 @@ fn App(cx: Scope) -> Element {
                 "Select program"
             }
         }
-        button {
-            onclick: move |_| {
-
-            },
-            "Start program"
-        },
         })
     }
 }
