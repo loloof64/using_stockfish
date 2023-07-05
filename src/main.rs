@@ -1,22 +1,15 @@
-mod process;
-
-use std::{
-    process::Child,
-    sync::{Arc, Mutex},
-    time::Duration,
-};
+use std::time::Duration;
 
 use dioxus_desktop::{Config, WindowBuilder};
 
+mod process;
 use process::*;
 
 mod file_explorer;
 use file_explorer::*;
 
 use dioxus::prelude::*;
-
-mod hooks;
-use hooks::*;
+use tokio::process::Child;
 
 fn main() {
     dioxus_desktop::launch_cfg(
@@ -31,41 +24,42 @@ fn App(cx: Scope) -> Element {
     let command = use_state(cx, || "".to_string());
     let is_selecting_program = use_state(cx, || false);
 
-    let process_handler = use_state(cx, || Arc::new(Mutex::new(Option::<Child>::None)));
-    let process_handler_clone = process_handler.clone();
-    let process_handler_clone_2 = process_handler.clone();
-    let process_handler_clone_3 = process_handler.clone();
-
-    use_component_lifecycle(
+    let _ = use_future(
         cx,
-        move || (),
-        move || match process_handler_clone.get().try_lock() {
-            Ok(ref mut locked_child) => match locked_child.as_mut() {
-                Some(child) => ProcessHandler::dispose(child),
-                _ => (),
-            },
-            _ => (),
+        (program_path,),
+        |(program_path,)| {
+            let program_path = program_path.to_owned();
+            let mut process_child = Option::<Child>::None;
+            async move {
+                if let Some(ref mut child) = process_child {
+                    ProcessHandler::dispose(child).await;
+                }
+                if !program_path.is_empty() {
+                    loop {
+                        match process_child {
+                            Some(ref mut wrapped_child) => {
+                                let line =
+                                    ProcessHandler::read_output_line(wrapped_child).await;
+                                if let Some(line) = line {
+                                    println!("{}", line);
+                                }
+                            }
+                            _ => {
+                                let command_child = ProcessHandler::start_program(&program_path);
+                                match command_child {
+                                    Ok(command_child) => {
+                                        process_child = Some(command_child);
+                                    }
+                                    _ => println!("failed to run program"),
+                                }
+                            }
+                        }
+                        async_std::task::sleep(Duration::from_millis(25)).await;
+                    }
+                }
+            }
         },
     );
-
-    let _: &Coroutine<()> = use_coroutine(cx,   |_| async move {
-        loop {
-            match process_handler_clone_2.get().try_lock() {
-                Ok(ref mut locked_child) => match locked_child.as_mut() {
-                    Some(child) => {
-                        let line = ProcessHandler::read_output_line(
-                            child,
-                        )
-                        .await;
-                        println!("{}", line);
-                        tokio::time::sleep(Duration::from_millis(8)).await;
-                    }
-                    _ => (),
-                },
-                _ => ()
-            }
-        }
-    });
 
     if *is_selecting_program.current() {
         cx.render(rsx! {
@@ -88,13 +82,7 @@ fn App(cx: Scope) -> Element {
                 }
                 button {
                     onclick: move |_| {
-                        match process_handler_clone_3.get().try_lock(){
-                            Ok(ref mut locked_child) => match locked_child.as_mut() {
-                                Some(child) => ProcessHandler::send_command(child, command.to_string()),
-                                _ => ()
-                            }   ,
-                            _ => ()
-                        }
+
                     },
                     "Send command"
                 }
@@ -104,6 +92,7 @@ fn App(cx: Scope) -> Element {
             class: "fieldsLine",
             input {
                 value: "{program_path}",
+                readonly: true,
                 oninput: move |evt| program_path.set(evt.value.clone())
             }
             button {
@@ -113,16 +102,7 @@ fn App(cx: Scope) -> Element {
         }
         button {
             onclick: move |_| {
-                match ProcessHandler::start_program(program_path.get()) {
-                    Ok(new_child) => match process_handler.get().try_lock() {
-                        Ok(ref mut locked_child) => match locked_child.as_mut() {
-                            Some(child) => *child = new_child,
-                            _ => ()
-                        },
-                        _ => (),
-                    },
-                    Err(e) => eprintln!("{}", e),
-                }
+
             },
             "Start program"
         },

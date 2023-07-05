@@ -1,8 +1,8 @@
-use std::io::{BufRead, Error, Write};
-use std::process::{Child, Command, Stdio};
+use std::process::Stdio;
+use std::io::Error;
 
-use tokio::io::BufReader;
-use tokio::process::ChildStdout;
+use tokio::io::{AsyncWriteExt, BufReader, AsyncBufReadExt};
+use tokio::process::{Child, Command};
 
 pub struct ProcessHandler {}
 
@@ -16,27 +16,28 @@ impl ProcessHandler {
         Ok(command_child)
     }
 
-    pub async fn read_output_line(child: &mut Child) -> String {
-        let stdout = child.stdout.take().unwrap();
-        let stdout = ChildStdout::from_std(stdout).unwrap();
-        let mut result = String::new();
-        let buffer = BufReader::new(stdout);
-        buffer.buffer().read_line(&mut result).unwrap();
-        result
+    pub async fn read_output_line(child: &mut Child) -> Option<String> {
+        match &mut child.stdout {
+            Some(stdout) => {
+                let mut reader = BufReader::new(stdout);
+                let mut buffer = String::new();
+                let result = reader.read_line(&mut buffer).await;
+                match result {
+                    Ok(_) => Some(buffer),
+                    _ => None
+                }
+            },
+            _ => None,
+        }
     }
 
     pub fn send_command(child: &mut Child, command: String) {
         let command = format!("{}\n", command);
 
-        child
-            .stdin
-            .as_mut()
-            .unwrap()
-            .write(command.as_bytes())
-            .unwrap();
+        let _ = child.stdin.as_mut().unwrap().write(command.as_bytes());
     }
 
-    pub fn dispose(child: &mut Child) {
-        child.kill().unwrap();
+    pub async fn dispose(child: &mut Child) {
+        let _ = child.kill().await;
     }
 }
