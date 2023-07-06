@@ -36,16 +36,19 @@ fn App(cx: Scope) -> Element {
 
         async move {
             loop {
+                /*
                 if let Some(ref mut child) = process_child {
                     ProcessHandler::dispose(child).await;
                 }
+                */
+
                 if !program_path.is_empty() {
                     match process_child {
                         Some(ref mut wrapped_child) => {
                             let line = ProcessHandler::read_output_line(wrapped_child).await;
-                            if let Some(line) = line {
+                            if let Ok(line) = line {
                                 if !line.is_empty() {
-                                    println!("{}", line);
+                                    print!("{}", line);
                                 }
                             }
                             if let Ok(line) = rx.try_recv() {
@@ -53,7 +56,7 @@ fn App(cx: Scope) -> Element {
                             }
                         }
                         _ => {
-                            let command_child = ProcessHandler::start_program(&program_path);
+                            let command_child = ProcessHandler::start_program(&program_path).await;
                             match command_child {
                                 Ok(command_child) => {
                                     process_child = Some(command_child);
@@ -63,7 +66,7 @@ fn App(cx: Scope) -> Element {
                         }
                     }
                 }
-                async_std::task::sleep(Duration::from_millis(25)).await;
+                async_std::task::sleep(Duration::from_millis(5)).await;
             }
         }
     });
