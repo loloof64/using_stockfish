@@ -31,13 +31,23 @@ impl ProcessHandler {
         }
     }
 
-    pub fn send_command(child: &mut Child, command: &String) {
+    pub async fn send_command(child: &mut Child, command: &String) {
         let command = format!("{}\n", command);
 
-        let _ = child.stdin.as_mut().unwrap().write(command.as_bytes());
+        if let Some(mut stdin) = child.stdin.take() {
+            stdin.write(command.as_bytes()).await.unwrap();
+            stdin.flush().await.unwrap();
+        }
+        else {
+            println!("child process' stdin not available");
+        }
+
+
     }
 
     pub async fn dispose(child: &mut Child) {
-        let _ = child.kill().await;
+        if let Ok(_) = child.kill().await {
+            println!("Killed child process");
+        }
     }
 }

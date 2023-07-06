@@ -1,4 +1,7 @@
-use std::{time::Duration, sync::mpsc::{Sender, channel}};
+use std::{
+    sync::mpsc::{channel, Sender},
+    time::Duration,
+};
 
 use dioxus_desktop::{Config, WindowBuilder};
 
@@ -32,19 +35,21 @@ fn App(cx: Scope) -> Element {
         child_input.set(Some(tx));
 
         async move {
-            if let Some(ref mut child) = process_child {
-                ProcessHandler::dispose(child).await;
-            }
-            if !program_path.is_empty() {
-                loop {
+            loop {
+                if let Some(ref mut child) = process_child {
+                    ProcessHandler::dispose(child).await;
+                }
+                if !program_path.is_empty() {
                     match process_child {
                         Some(ref mut wrapped_child) => {
                             let line = ProcessHandler::read_output_line(wrapped_child).await;
                             if let Some(line) = line {
-                                println!("{}", line);
+                                if !line.is_empty() {
+                                    println!("{}", line);
+                                }
                             }
                             if let Ok(line) = rx.try_recv() {
-                                ProcessHandler::send_command(wrapped_child, &line);
+                                ProcessHandler::send_command(wrapped_child, &line).await;
                             }
                         }
                         _ => {
@@ -57,8 +62,8 @@ fn App(cx: Scope) -> Element {
                             }
                         }
                     }
-                    async_std::task::sleep(Duration::from_millis(25)).await;
                 }
+                async_std::task::sleep(Duration::from_millis(25)).await;
             }
         }
     });
@@ -85,7 +90,9 @@ fn App(cx: Scope) -> Element {
                 button {
                     onclick: |_| {
                         if let Some(process_input) = child_input.get() {
-                            process_input.send(command.get().clone()).unwrap();
+                            if let Ok(_) = process_input.send(command.get().clone()) {
+
+                            }
                         }
                     },
                     "Send command"
